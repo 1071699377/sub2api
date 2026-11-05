@@ -36,7 +36,7 @@ describe('useModelWhitelist', () => {
     }
   })
 
-  it('openai 模型列表包含 GPT-5.4 官方快照', () => {
+  it('openai 模型列表移除旧型号并包含 GPT Image 2.6', () => {
     const models = getModelsByPlatform('openai')
 
     expect(models).toEqual(['gpt-6-astra', 'gpt-6.1-sol'])

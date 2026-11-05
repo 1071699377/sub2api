@@ -266,7 +266,7 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 	if account != nil {
 		filtered := make([]string, 0, len(models))
 		for _, model := range models {
-			if !isRetiredOpenAISubscriptionModel(account, model) {
+			if !isHiddenOpenAISubscriptionModel(account, model) {
 				filtered = append(filtered, model)
 			}
 		}
