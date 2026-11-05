@@ -263,6 +263,15 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 	if account != nil && account.Platform == PlatformOpenAI {
 		models = filterOpenAISiteModels(models)
 	}
+	if account != nil {
+		filtered := make([]string, 0, len(models))
+		for _, model := range models {
+			if !isRetiredOpenAISubscriptionModel(account, model) {
+				filtered = append(filtered, model)
+			}
+		}
+		models = filtered
+	}
 	catalog := &UpstreamModelCatalog{Models: models, Metadata: make(map[string]UpstreamModelMetadata)}
 	if account != nil && account.IsGrok() {
 		if grokObservation != nil && grokObservation.Attempt.Status == grokCatalogStatusConfiguredFallback {
