@@ -50,6 +50,15 @@ vi.mock('@/api/admin/accounts', () => ({
   }
 }))
 
+// 站点策略默认不限制，通用行为用例不受白名单影响；白名单用例里用 applyOpenAISitePolicy 显式开启。
+vi.mock('@/api/admin/openaiSitePolicy', () => ({
+  getOpenAISitePolicy: vi.fn().mockResolvedValue({
+    allowed_models: [],
+    image_generation_enabled: false,
+    default_models: ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-5.6-sol']
+  })
+}))
+
 vi.mock('@/composables/useClipboard', () => ({
   useClipboard: () => ({
     copyToClipboard

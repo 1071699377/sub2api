@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -46,6 +47,21 @@ func writeOpenAIModelsError(c *gin.Context, status int, errorType, message strin
 }
 
 func writeOpenAIModelsResponse(c *gin.Context, manifest *service.OpenAIModelsResponse) {
+	if manifest != nil && !manifest.NotModified && openAISitePolicyAppliesToRequest(c) {
+		// 站点白名单：上游清单只保留白名单内模型，并按过滤后的内容重新计算 ETag。
+		if filtered, changed := service.FilterOpenAIModelsBodyBySitePolicy(manifest.Body); changed {
+			filteredManifest := *manifest
+			filteredManifest.Body = filtered
+			filteredManifest.ETag = service.CodexModelsManifestETag(filtered)
+			if c.Param("model") == "" && service.CodexModelsManifestETagMatches(c.GetHeader("If-None-Match"), filteredManifest.ETag) {
+				c.Header("ETag", filteredManifest.ETag)
+				c.Status(http.StatusNotModified)
+				c.Writer.WriteHeaderNow()
+				return
+			}
+			manifest = &filteredManifest
+		}
+	}
 	if c.Param("model") != "" {
 		writeRetrievedModel(c, manifest.Body)
 		return
@@ -59,6 +75,16 @@ func writeOpenAIModelsResponse(c *gin.Context, manifest *service.OpenAIModelsRes
 		return
 	}
 	c.Data(http.StatusOK, "application/json", manifest.Body)
+}
+
+// openAISitePolicyAppliesToRequest 仅对 OpenAI 平台分组应用站点模型白名单
+// （Composite 分组里还有其他平台的模型，不能按 OpenAI 白名单过滤）。
+func openAISitePolicyAppliesToRequest(c *gin.Context) bool {
+	if !service.OpenAISiteModelsRestricted() {
+		return false
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	return ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformOpenAI
 }
 
 // Both discovery endpoints consume the same final catalogue, after group/platform

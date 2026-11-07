@@ -32,7 +32,11 @@ func ImageGenerationPermissionMessage() string {
 }
 
 // GroupAllowsImageGeneration preserves ungrouped-key behavior and enforces the flag when a group is present.
+// 站点全局生图开关关闭时，所有分组（含未绑定分组的 key）一律禁止生图。
 func GroupAllowsImageGeneration(group *Group) bool {
+	if !OpenAISiteImageGenerationEnabled() {
+		return false
+	}
 	return group == nil || group.AllowImageGeneration
 }
 

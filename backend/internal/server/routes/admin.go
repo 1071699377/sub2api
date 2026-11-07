@@ -589,6 +589,11 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpA
 		// 529过载冷却配置
 		adminSettings.GET("/overload-cooldown", h.Admin.Setting.GetOverloadCooldownSettings)
 		adminSettings.PUT("/overload-cooldown", h.Admin.Setting.UpdateOverloadCooldownSettings)
+		// OpenAI 站点策略（模型白名单 + 全局生图开关）
+		adminSettings.GET("/openai-site-policy", h.Admin.Setting.GetOpenAISitePolicy)
+		adminSettings.PUT("/openai-site-policy", h.Admin.Setting.UpdateOpenAISitePolicy)
+		adminSettings.POST("/openai-site-policy/sync-upstream", h.Admin.Account.SyncOpenAISitePolicyUpstreamModels)
+		adminSettings.POST("/openai-site-policy/apply-to-accounts", h.Admin.Account.ApplyOpenAISitePolicyToAccounts)
 		// 429默认回避配置
 		adminSettings.GET("/rate-limit-429-cooldown", h.Admin.Setting.GetRateLimit429CooldownSettings)
 		adminSettings.PUT("/rate-limit-429-cooldown", h.Admin.Setting.UpdateRateLimit429CooldownSettings)

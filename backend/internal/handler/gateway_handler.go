@@ -1192,6 +1192,15 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
+	if platform == service.PlatformOpenAI && service.OpenAISiteModelsRestricted() {
+		// 站点白名单：只对外展示白名单内模型（再叠加分组白名单）。
+		source := openAISiteListingSource(availableModels)
+		if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
+			source = apiKey.Group.ModelAllowlist.FilterForListing(source)
+		}
+		writeAllowlistedModelsList(c, platform, source)
+		return
+	}
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
 		source := modelListingSource(platform, availableModels, defaultModelIDsForPlatform(platform))
 		writeAllowlistedModelsList(c, platform, apiKey.Group.ModelAllowlist.FilterForListing(source))
@@ -1289,6 +1298,13 @@ func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *servi
 
 	availableModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
 	fallbackModels := defaultCodexModelIDsForPlatform(platform)
+	if platform == service.PlatformOpenAI && service.OpenAISiteModelsRestricted() {
+		source := openAISiteListingSource(availableModels)
+		if group.ModelAllowlistEnabled() {
+			source = group.ModelAllowlist.FilterForListing(source)
+		}
+		return source
+	}
 	if group.ModelAllowlistEnabled() {
 		return group.ModelAllowlist.FilterForListing(modelListingSource(platform, availableModels, fallbackModels))
 	}
@@ -1456,6 +1472,15 @@ func writeOpenAIModelsList(c *gin.Context, modelIDs []string) {
 		})
 	}
 	writeModelsListResponse(c, models)
+}
+
+// openAISiteListingSource 在站点白名单启用时计算 OpenAI 模型列表：
+// 账号有显式映射时取映射键 ∩ 白名单；账号均未配置映射（nil）时直接用白名单。
+func openAISiteListingSource(availableModels []string) []string {
+	if availableModels == nil {
+		return service.CurrentOpenAISitePolicy().AllowedModels
+	}
+	return service.FilterOpenAISiteModels(availableModels)
 }
 
 // modelListingSource 汇总模型列表过滤的候选来源：账号映射键（availableModels）

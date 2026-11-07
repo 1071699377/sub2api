@@ -802,6 +802,10 @@ func ProvideSettingService(scopedKeys ScopedAdminKeyRepository, settingRepo Sett
 	if err := svc.LoadForwardedClientIPSettings(context.Background()); err != nil {
 		logger.LegacyPrintf("service.setting", "Warning: load forwarded client IP settings failed: %v", err)
 	}
+	// OpenAI 站点策略（模型白名单 + 全局生图开关），热路径读进程内缓存。
+	if err := svc.LoadOpenAISitePolicy(context.Background()); err != nil {
+		logger.LegacyPrintf("service.setting", "Warning: load OpenAI site policy failed: %v", err)
+	}
 	if err := svc.MigrateOpenAIAllowClaudeCodeCodexPluginSetting(context.Background()); err != nil {
 		logger.LegacyPrintf("service.setting", "Warning: migrate openai allow Claude Code Codex plugin setting failed: %v", err)
 	}

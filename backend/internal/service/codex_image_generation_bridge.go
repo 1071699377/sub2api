@@ -95,6 +95,10 @@ func (a *Account) CodexImageGenerationBridgeOverride() *bool {
 // client-provided Codex /responses image_generation tools. Unknown or unset
 // values default to allow to preserve existing behavior.
 func (a *Account) CodexImageGenerationExplicitToolPolicy() string {
+	// 站点全局禁用生图时，Codex 自带的 image_generation 工具一律剥离，避免整条请求被 403。
+	if a != nil && a.Platform == PlatformOpenAI && !OpenAISiteImageGenerationEnabled() {
+		return codexImageGenerationExplicitToolPolicyStrip
+	}
 	if a == nil || a.Platform != PlatformOpenAI || a.Extra == nil {
 		return codexImageGenerationExplicitToolPolicyAllow
 	}

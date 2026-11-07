@@ -163,6 +163,8 @@
 
         <!-- Tab: Gateway -->
         <div v-show="activeTab === 'gateway'" class="space-y-6">
+          <!-- OpenAI 站点策略：模型白名单 + 全局生图开关 -->
+          <OpenAISitePolicySettings />
           <!-- Overload Cooldown (529) Settings -->
           <div class="card">
             <div
@@ -9013,6 +9015,7 @@ import {
   stepUpBlockReason,
 } from "@/composables/useStepUp";
 import AdminAccessKeysSettings from "@/components/admin/settings/AdminAccessKeysSettings.vue";
+import OpenAISitePolicySettings from "@/components/admin/settings/OpenAISitePolicySettings.vue";
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
 import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";

@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { accountsAPI } from '@/api/admin/accounts'
@@ -154,7 +154,7 @@ import type { SyncUpstreamPreviewParams } from '@/api/admin/accounts'
 import { useClipboard } from '@/composables/useClipboard'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { allModels, filterOpenAIAllowedModels, getModelsByPlatform } from '@/composables/useModelWhitelist'
+import { allModels, ensureOpenAISitePolicyLoaded, filterOpenAIAllowedModels, getModelsByPlatform } from '@/composables/useModelWhitelist'
 import { supportsUpstreamModelSync } from '@/constants/platformCatalog'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
@@ -198,6 +198,11 @@ watch(
     isSyncingUpstream.value = false
   }
 )
+
+onMounted(() => {
+  // OpenAI 候选模型来自后台「OpenAI 站点策略」，加载一次即可。
+  void ensureOpenAISitePolicyLoaded()
+})
 
 onUnmounted(() => {
   upstreamSyncVersion += 1

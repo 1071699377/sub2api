@@ -1,10 +1,20 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/admin/accounts', () => ({
   getAntigravityDefaultModelMapping: vi.fn()
 }))
 
-import { buildModelMappingObject, getModelsByPlatform, getPresetMappingsByPlatform, splitModelMappingObject } from '../useModelWhitelist'
+import {
+  allModels,
+  applyOpenAISitePolicy,
+  buildModelMappingObject,
+  filterOpenAIAllowedModels,
+  getModelsByPlatform,
+  getOpenAIAllowedModels,
+  getPresetMappingsByPlatform,
+  openaiSiteModelsRestricted,
+  splitModelMappingObject
+} from '../useModelWhitelist'
 import { BUILTIN_PLATFORM_CATALOG, resetPlatformCatalog, setPlatformCatalog } from '@/constants/platformCatalog'
 
 describe('useModelWhitelist', () => {
@@ -241,6 +251,28 @@ describe('useModelWhitelist', () => {
     expect(parsed).toEqual({
       allowedModels: ['gpt-5.4'],
       modelMappings: [{ from: 'gpt-latest', to: 'gpt-5.4' }]
+    })
+  })
+
+  describe('OpenAI 站点策略', () => {
+    const legacy = { allowed_models: ['gpt-6-astra', 'gpt-6.1-sol'], default_models: [] }
+    afterEach(() => applyOpenAISitePolicy(legacy))
+
+    it('启用白名单时 OpenAI 候选、过滤与预设都只保留白名单模型', () => {
+      applyOpenAISitePolicy({ allowed_models: ['gpt-6-sol', 'gpt-6-astra'], default_models: ['gpt-5.6'] })
+      expect(openaiSiteModelsRestricted.value).toBe(true)
+      expect(getModelsByPlatform('openai')).toEqual(['gpt-6-sol', 'gpt-6-astra'])
+      expect(filterOpenAIAllowedModels(['gpt-5.6', ' gpt-6-sol ', 'gpt-6-sol', 'gpt-6-astra'])).toEqual(['gpt-6-sol', 'gpt-6-astra'])
+      expect(getPresetMappingsByPlatform('openai').map(p => p.from)).toEqual(['gpt-6-astra', 'gpt-6-sol'])
+      expect(allModels.some(m => m.value === 'gpt-6-sol')).toBe(true)
+      expect(allModels.some(m => m.value === 'gpt-6.1-sol')).toBe(false)
+    })
+
+    it('白名单为空表示不限制：候选回落内置目录，过滤只去重', () => {
+      applyOpenAISitePolicy({ allowed_models: [], default_models: ['gpt-5.6', 'gpt-6-astra'] })
+      expect(openaiSiteModelsRestricted.value).toBe(false)
+      expect(getOpenAIAllowedModels()).toEqual(['gpt-5.6', 'gpt-6-astra'])
+      expect(filterOpenAIAllowedModels(['any-model', 'any-model', ' x '])).toEqual(['any-model', 'x'])
     })
   })
 })

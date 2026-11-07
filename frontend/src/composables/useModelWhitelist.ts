@@ -1,23 +1,58 @@
+import { reactive, ref } from 'vue'
 import { getProviderProfile } from '@/constants/platformCatalog'
+import { getOpenAISitePolicy, type OpenAISitePolicy } from '@/api/admin/openaiSitePolicy'
 
 // =====================
 // 模型列表（硬编码，与 new-api 一致）
 // =====================
 
-// OpenAI：站点策略仅允许这两款；新建白名单 / 填充相关 / 同步上游模型都走这里。
-// 若要扩容，改这一处并同步后端 openAISiteAllowedModels。
-export const openaiAllowedModels = ['gpt-6-astra', 'gpt-6.1-sol'] as const
-const openaiModels = [...openaiAllowedModels]
+// OpenAI：模型列表来自后台「系统设置 → OpenAI 站点策略」（后端 openai_site_policy.go）。
+// 新建白名单 / 填充相关 / 同步上游模型都走这里。
+// 策略加载前使用后端默认值（与后端 legacyOpenAISiteAllowedModels 一致）。
+const legacyOpenAIAllowedModels = ['gpt-6-astra', 'gpt-6.1-sol']
+const openaiModels = reactive<string[]>([...legacyOpenAIAllowedModels])
 
-const openaiAllowedModelSet = new Set<string>(openaiAllowedModels)
+/** 站点是否启用了 OpenAI 模型白名单（false = 不限制）。 */
+export const openaiSiteModelsRestricted = ref(true)
+let openaiAllowedModelSet = new Set<string>(legacyOpenAIAllowedModels)
+let openaiSitePolicyPromise: Promise<void> | null = null
 
-/** 将模型列表收成站点允许的 OpenAI 模型（保持原顺序、去重）。 */
+/** 当前站点允许的 OpenAI 模型（不限制时为内置模型目录）。 */
+export function getOpenAIAllowedModels(): string[] {
+  return [...openaiModels]
+}
+
+/** 应用后台返回的站点策略，刷新 OpenAI 模型候选。 */
+export function applyOpenAISitePolicy(policy: Pick<OpenAISitePolicy, 'allowed_models' | 'default_models'>) {
+  const allowed = (policy.allowed_models || []).map(m => m.trim()).filter(Boolean)
+  const restricted = allowed.length > 0
+  const next = restricted ? allowed : (policy.default_models || []).map(m => m.trim()).filter(Boolean)
+  openaiSiteModelsRestricted.value = restricted
+  openaiAllowedModelSet = new Set<string>(allowed)
+  openaiModels.splice(0, openaiModels.length, ...Array.from(new Set(next)))
+  rebuildAllModels()
+}
+
+/** 加载一次站点策略（失败时保留默认值，不打断页面）。force=true 强制重新拉取。 */
+export function ensureOpenAISitePolicyLoaded(force = false): Promise<void> {
+  if (!openaiSitePolicyPromise || force) {
+    openaiSitePolicyPromise = getOpenAISitePolicy()
+      .then(policy => applyOpenAISitePolicy(policy))
+      .catch(() => {
+        openaiSitePolicyPromise = null
+      })
+  }
+  return openaiSitePolicyPromise ?? Promise.resolve()
+}
+
+/** 将模型列表收成站点允许的 OpenAI 模型（保持原顺序、去重）；未启用白名单时只去重。 */
 export function filterOpenAIAllowedModels(models: string[]): string[] {
   const out: string[] = []
   const seen = new Set<string>()
   for (const raw of models) {
     const model = raw.trim()
-    if (!model || !openaiAllowedModelSet.has(model) || seen.has(model)) continue
+    if (!model || seen.has(model)) continue
+    if (openaiSiteModelsRestricted.value && !openaiAllowedModelSet.has(model)) continue
     seen.add(model)
     out.push(model)
   }
@@ -284,8 +319,7 @@ const perplexityModels = [
 ]
 
 // 所有模型（去重）
-const allModelsList: string[] = [
-  ...openaiModels,
+const otherModelsList: string[] = [
   ...claudeModels,
   ...geminiModels,
   ...zhipuModels,
@@ -305,8 +339,14 @@ const allModelsList: string[] = [
   ...perplexityModels
 ]
 
-// 转换为下拉选项格式
-export const allModels = allModelsList.map(m => ({ value: m, label: m }))
+// 转换为下拉选项格式（OpenAI 部分随站点策略刷新）
+export const allModels = reactive<{ value: string; label: string }[]>([])
+
+function rebuildAllModels() {
+  const list = [...openaiModels, ...otherModelsList]
+  allModels.splice(0, allModels.length, ...list.map(m => ({ value: m, label: m })))
+}
+rebuildAllModels()
 
 // =====================
 // 预设映射
@@ -336,6 +376,23 @@ const openaiPresetMappings = [
   { label: 'GPT-6.1 Sol', from: 'gpt-6.1-sol', to: 'gpt-6.1-sol', color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400' },
   { label: 'GPT-6 Astra', from: 'gpt-6-astra', to: 'gpt-6-astra', color: 'bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-400' }
 ]
+
+// OpenAI 预设映射跟随站点白名单：已知模型沿用上面的样式，其余按模型名生成。
+// 未启用白名单时只给内置的两个快捷预设，避免目录过长。
+function getOpenAIPresetMappings() {
+  if (!openaiSiteModelsRestricted.value) return openaiPresetMappings
+  const allowed = new Set(openaiModels)
+  const known = new Set(openaiPresetMappings.map(p => p.from))
+  return [
+    ...openaiPresetMappings.filter(p => allowed.has(p.from)),
+    ...openaiModels.filter(model => !known.has(model)).map(model => ({
+      label: model,
+      from: model,
+      to: model,
+      color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
+    }))
+  ]
+}
 
 const geminiPresetMappings = [
   { label: 'Flash 2.0', from: 'gemini-2.0-flash', to: 'gemini-2.0-flash', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -521,7 +578,7 @@ export function getModelsByPlatform(platform: string): string[] {
 
 // 按平台获取预设映射
 export function getPresetMappingsByPlatform(platform: string) {
-  if (platform === 'openai') return openaiPresetMappings
+  if (platform === 'openai') return getOpenAIPresetMappings()
   if (platform === 'gemini') return geminiPresetMappings
   if (platform === 'grok' || platform === 'xai') return grokPresetMappings
   if (platform === 'antigravity') return antigravityPresetMappings
