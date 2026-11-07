@@ -662,8 +662,10 @@ func ProvideScheduledTestRunnerService(
 	accountTestSvc *AccountTestService,
 	rateLimitSvc *RateLimitService,
 	cfg *config.Config,
+	admissionRepo OpenAIAccountAdmissionRepository,
 ) *ScheduledTestRunnerService {
 	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg)
+	svc.SetOpenAIAccountAdmissionRepository(admissionRepo)
 	svc.Start()
 	return svc
 }

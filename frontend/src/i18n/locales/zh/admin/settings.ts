@@ -1070,6 +1070,28 @@ export default {
         saved: '429 默认回避设置保存成功',
         saveFailed: '保存 429 默认回避设置失败'
       },
+      openaiAccountAdmission: {
+        title: '新 OpenAI 账号准入',
+        description: '新建的 OpenAI OAuth 账号先关闭客户调度、并发 1，后台用固定推理题测试：连续答对后开放调度，连续给出降级答案后移入隔离分组。只影响启用后新建的账号。',
+        enabled: '启用新账号准入',
+        enabledHint: '对之后通过手动新建或会话导入创建的 OpenAI OAuth 账号生效，不追溯已有账号',
+        modelId: '测试模型',
+        reasoningEffort: '思考等级',
+        waitSeconds: '每轮间隔（秒）',
+        passCount: '连续通过次数',
+        passAnswer: '通过答案',
+        passedConcurrency: '通过后并发',
+        isolationCount: '连续隔离次数',
+        degradedAnswer: '隔离答案',
+        isolationGroup: '隔离目标分组',
+        isolationGroupPlaceholder: '请选择启用中的 OpenAI 分组',
+        isolationGroupRequired: '启用前须选择隔离目标分组',
+        continueAfterPass: '通过后继续测试',
+        continueAfterPassHint: '用于发现通过后才被降级的账号；会持续消耗账号额度',
+        saved: '新账号准入设置保存成功',
+        saveFailed: '保存新账号准入设置失败',
+        loadFailed: '加载新账号准入设置失败'
+      },
       streamTimeout: {
         title: '流超时处理',
         description: '配置上游响应超时时的账户处理策略，避免问题账户持续被选中',

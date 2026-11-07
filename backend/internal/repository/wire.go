@@ -73,6 +73,7 @@ var ProviderSet = wire.NewSet(
 	NewAccountRepository,
 	NewAdminAccountRepository,
 	NewScheduledTestPlanRepository,   // 定时测试计划仓储
+	NewOpenAIAccountAdmissionRepository, // 新 OpenAI OAuth 账号准入
 	NewScheduledTestResultRepository, // 定时测试结果仓储
 	NewProxyRepository,
 	NewRedeemCodeRepository,

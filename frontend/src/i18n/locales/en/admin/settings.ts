@@ -1076,6 +1076,28 @@ export default {
         saved: '429 default cooldown settings saved',
         saveFailed: 'Failed to save 429 default cooldown settings'
       },
+      openaiAccountAdmission: {
+        title: 'New OpenAI Account Admission',
+        description: 'Newly created OpenAI OAuth accounts start with customer scheduling off and concurrency 1. A background test asks a fixed reasoning question: consecutive correct answers open scheduling, consecutive degraded answers move the account to an isolation group. Only accounts created after enabling are affected.',
+        enabled: 'Enable new account admission',
+        enabledHint: 'Applies to OpenAI OAuth accounts created afterwards (manual creation or session import); existing accounts are not affected',
+        modelId: 'Test model',
+        reasoningEffort: 'Reasoning effort',
+        waitSeconds: 'Interval between rounds (seconds)',
+        passCount: 'Consecutive passes required',
+        passAnswer: 'Passing answer',
+        passedConcurrency: 'Concurrency after passing',
+        isolationCount: 'Consecutive degraded answers to isolate',
+        degradedAnswer: 'Degraded answer',
+        isolationGroup: 'Isolation group',
+        isolationGroupPlaceholder: 'Select an active OpenAI group',
+        isolationGroupRequired: 'Select an isolation group before enabling',
+        continueAfterPass: 'Keep testing after passing',
+        continueAfterPassHint: 'Detects accounts degraded after approval; continuously consumes account quota',
+        saved: 'New account admission settings saved',
+        saveFailed: 'Failed to save new account admission settings',
+        loadFailed: 'Failed to load new account admission settings'
+      },
       streamTimeout: {
         title: 'Stream Timeout Handling',
         description: 'Configure account handling strategy when upstream response times out',
