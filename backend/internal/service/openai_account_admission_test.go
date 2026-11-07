@@ -125,6 +125,19 @@ func TestOpenAIAdmissionConfigValidation(t *testing.T) {
 	require.Equal(t, "low", empty.ReasoningEffort)
 	require.Equal(t, "21", empty.PassAnswer)
 	require.Equal(t, "29", empty.DegradedAnswer)
+	require.Equal(t, DefaultOpenAIAccountAdmissionConfig().WaitSeconds, empty.WaitSeconds)
+	require.Equal(t, DefaultOpenAIAccountAdmissionConfig().PassCount, empty.PassCount)
+	require.Equal(t, DefaultOpenAIAccountAdmissionConfig().PassedConcurrency, empty.PassedConcurrency)
+	require.Equal(t, DefaultOpenAIAccountAdmissionConfig().IsolationCount, empty.IsolationCount)
+
+	// 只提交 enabled=true 时，报错应指向缺少隔离分组。
+	partial := OpenAIAccountAdmissionConfig{Enabled: true}
+	partial.Normalize()
+	require.EqualError(t, partial.Validate(), "启用前须选择隔离目标分组")
+
+	negative := OpenAIAccountAdmissionConfig{WaitSeconds: -1}
+	negative.Normalize()
+	require.Error(t, negative.Validate(), "负数仍然非法")
 }
 
 func TestOpenAIAdmissionStateRoundTripFromExtra(t *testing.T) {
