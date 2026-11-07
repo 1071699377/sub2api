@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>每日签到 · ChatflowsAI</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #3b82f6;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --border: #2a3548;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1e3a5f 0%, transparent 55%), var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 650; }
+    .sub { color: var(--muted); font-size: 0.92rem; margin-bottom: 22px; line-height: 1.5; }
+    .row { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 0.95rem; }
+    .label { color: var(--muted); }
+    .val { font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+    }
+    .badge.ok { color: var(--ok); border-color: #14532d; background: #052e16; }
+    .badge.warn { color: var(--warn); border-color: #78350f; background: #1c1408; }
+    button {
+      width: 100%;
+      margin-top: 22px;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button:not(:disabled):hover { filter: brightness(1.08); }
+    .msg { margin-top: 14px; min-height: 1.3em; font-size: 0.9rem; color: var(--muted); }
+    .msg.err { color: var(--err); }
+    .msg.ok { color: var(--ok); }
+    a.back { display: inline-block; margin-top: 18px; color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+    a.back:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>每日签到</h1>
+    <p class="sub">每天北京时间 12:00 可签到一次，免费领取 <strong>50</strong> 额度。</p>
+    <div class="row"><span class="label">当前余额</span><span class="val" id="balance">—</span></div>
+    <div class="row"><span class="label">本轮周期</span><span class="val" id="period">—</span></div>
+    <div class="row"><span class="label">状态</span><span id="statusBadge" class="badge">加载中</span></div>
+    <div class="row"><span class="label">下次重置</span><span class="val" id="nextReset">—</span></div>
+    <button id="btn" disabled>签到领取 50 额度</button>
+    <div class="msg" id="msg"></div>
+    <a class="back" href="/">← 返回控制台</a>
+  </div>
+  <script>
+    const TOKEN_KEY = "auth_token";
+
+    function getToken() {
+      try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "—";
+      try {
+        return new Date(iso).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
+      } catch { return iso; }
+    }
+
+    function redirectLogin() {
+      const redirect = encodeURIComponent("/checkin/");
+      location.href = "/login?redirect=" + redirect;
+    }
+
+    async function api(path, opts = {}) {
+      const token = getToken();
+      if (!token) {
+        redirectLogin();
+        throw new Error("未登录");
+      }
+      const res = await fetch(path, {
+        ...opts,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+          ...(opts.headers || {}),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 || data.code === 401) {
+        redirectLogin();
+        throw new Error(data.message || "未登录");
+      }
+      return { res, data };
+    }
+
+    function render(st) {
+      document.getElementById("balance").textContent = Number(st.balance).toFixed(2);
+      document.getElementById("period").textContent = st.period_key;
+      document.getElementById("nextReset").textContent = fmtTime(st.next_reset_at);
+      const badge = document.getElementById("statusBadge");
+      const btn = document.getElementById("btn");
+      if (st.can_checkin) {
+        badge.textContent = "可签到";
+        badge.className = "badge ok";
+        btn.disabled = false;
+        btn.textContent = "签到领取 50 额度";
+      } else {
+        badge.textContent = "本轮已签到";
+        badge.className = "badge warn";
+        btn.disabled = true;
+        btn.textContent = "已领取，等待下次 12:00";
+        if (st.checked_in_at) {
+          document.getElementById("msg").textContent = "签到时间：" + fmtTime(st.checked_in_at);
+        }
+      }
+    }
+
+    async function loadStatus() {
+      const msg = document.getElementById("msg");
+      msg.className = "msg";
+      msg.textContent = "";
+      try {
+        const { res, data } = await api("/api/checkin/status");
+        if (data.code !== 0) throw new Error(data.message || "加载失败");
+        render(data.data);
+      } catch (e) {
+        msg.className = "msg err";
+        msg.textContent = e.message || String(e);
+      }
+    }
+
+    document.getElementById("btn").addEventListener("click", async () => {
+      const btn = document.getElementById("btn");
+      const msg = document.getElementById("msg");
+      btn.disabled = true;
+      msg.className = "msg";
+      msg.textContent = "签到中…";
+      try {
+        const { res, data } = await api("/api/checkin", { method: "POST" });
+        if (res.status === 409 || data.code === 409) {
+          msg.className = "msg warn";
+          msg.textContent = data.message || "本轮已签到";
+          await loadStatus();
+          return;
+        }
+        if (data.code !== 0) throw new Error(data.message || "签到失败");
+        msg.className = "msg ok";
+        msg.textContent = "签到成功，已领取 +" + data.data.amount + " 额度";
+        await loadStatus();
+      } catch (e) {
+        msg.className = "msg err";
+        msg.textContent = e.message || String(e);
+        btn.disabled = false;
+      }
+    });
+
+    if (!getToken()) redirectLogin();
+    else loadStatus();
+  </script>
+</body>
+</html>

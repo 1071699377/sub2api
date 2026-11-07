@@ -1,0 +1,17 @@
+services:
+  checkin:
+    build: .
+    image: sub2api-checkin:local
+    container_name: sub2api-checkin
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:18100:18100"
+    networks:
+      - sub2api-network
+
+networks:
+  sub2api-network:
+    external: true
+    name: ${SUB2API_DOCKER_NETWORK:-sub2api-local_sub2api-network}
