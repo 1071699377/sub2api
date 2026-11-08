@@ -102,19 +102,6 @@ func (c *OpenAIAccountAdmissionConfig) Normalize() {
 	if c.DegradedAnswer == "" {
 		c.DegradedAnswer = d.DegradedAnswer
 	}
-	// 0 对这些字段都不是合法值，视为未填写（便于只提交部分字段）；负数仍交给 Validate 拒绝。
-	if c.WaitSeconds == 0 {
-		c.WaitSeconds = d.WaitSeconds
-	}
-	if c.PassCount == 0 {
-		c.PassCount = d.PassCount
-	}
-	if c.PassedConcurrency == 0 {
-		c.PassedConcurrency = d.PassedConcurrency
-	}
-	if c.IsolationCount == 0 {
-		c.IsolationCount = d.IsolationCount
-	}
 }
 
 func (c OpenAIAccountAdmissionConfig) Validate() error {
