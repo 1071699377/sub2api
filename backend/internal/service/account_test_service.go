@@ -891,7 +891,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		upstreamTestModelID = normalizeOpenAIModelForUpstream(credentialAccount, testModelID)
 	}
 	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth)
-	applyOpenAIAdmissionTestOverrides(c, payload)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event once. A task-invalid Agent Identity response may
@@ -3316,61 +3315,6 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 		}
 	}
 
-	return &ScheduledTestResult{
-		Status:       status,
-		ResponseText: responseText,
-		ErrorMessage: errMsg,
-		LatencyMs:    finishedAt.Sub(startedAt).Milliseconds(),
-		StartedAt:    startedAt,
-		FinishedAt:   finishedAt,
-	}, nil
-}
-
-// 准入测试专用的 gin context 键，仅由 RunOpenAIAdmissionTestBackground 设置；
-// 管理端手动测试与普通定时测试不受影响。
-const (
-	accountTestAdmissionPromptKey = "account_test_admission_prompt"
-	accountTestAdmissionEffortKey = "account_test_admission_effort"
-)
-
-// applyOpenAIAdmissionTestOverrides 在准入测试中替换 Responses 测试题目并设置思考等级。
-func applyOpenAIAdmissionTestOverrides(c *gin.Context, payload map[string]any) {
-	if c == nil || payload == nil || !c.GetBool(accountTestBackgroundKey) {
-		return
-	}
-	if prompt := strings.TrimSpace(c.GetString(accountTestAdmissionPromptKey)); prompt != "" {
-		payload["input"] = []map[string]any{{
-			"role":    "user",
-			"content": []map[string]any{{"type": "input_text", "text": prompt}},
-		}}
-	}
-	if effort := strings.TrimSpace(c.GetString(accountTestAdmissionEffortKey)); effort != "" {
-		payload["reasoning"] = map[string]any{"effort": effort}
-	}
-}
-
-// RunOpenAIAdmissionTestBackground 以指定题目和思考等级在后台测试账号。
-func (s *AccountTestService) RunOpenAIAdmissionTestBackground(ctx context.Context, accountID int64, modelID, prompt, effort string) (*ScheduledTestResult, error) {
-	startedAt := time.Now()
-
-	w := httptest.NewRecorder()
-	ginCtx, _ := gin.CreateTestContext(w)
-	ginCtx.Request = (&http.Request{}).WithContext(ctx)
-	ginCtx.Set(accountTestBackgroundKey, true)
-	ginCtx.Set(accountTestAdmissionPromptKey, prompt)
-	ginCtx.Set(accountTestAdmissionEffortKey, effort)
-
-	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, prompt, AccountTestModeDefault)
-
-	finishedAt := time.Now()
-	responseText, errMsg := parseTestSSEOutput(w.Body.String())
-	status := "success"
-	if testErr != nil || errMsg != "" {
-		status = "failed"
-		if errMsg == "" && testErr != nil {
-			errMsg = testErr.Error()
-		}
-	}
 	return &ScheduledTestResult{
 		Status:       status,
 		ResponseText: responseText,

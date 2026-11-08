@@ -540,10 +540,6 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err != nil {
 		return nil, err
 	}
-	// 新 OpenAI OAuth 账号准入：启用时先关闭调度、并发 1，由后台测试决定放行或隔离。
-	if err := s.applyOpenAIAccountAdmissionOnCreate(ctx, account); err != nil {
-		return nil, err
-	}
 	if err := s.ValidateAccountGroupBindings(ctx, groupIDs); err != nil {
 		return nil, err
 	}
@@ -721,15 +717,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			OpenAIAutoResetCreditStateExtraKey,
 			OpenCodeGoUsageAutoRefreshExtraKey,
 			OpenCodeGoUsageSnapshotExtraKey,
-			OpenAIAccountAdmissionExtraKey,
 		} {
 			if v, ok := account.Extra[key]; ok {
 				normalizedExtra[key] = v
-			} else {
-				// 准入状态只由后台执行器维护，普通编辑不能新增或伪造。
-				if key == OpenAIAccountAdmissionExtraKey {
-					delete(normalizedExtra, key)
-				}
 			}
 		}
 		normalizedExtra = prepareCodexFingerprintExtraForUpdate(account, normalizedExtra)

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -21,20 +20,9 @@ type ScheduledTestRunnerService struct {
 	rateLimitSvc   *RateLimitService
 	cfg            *config.Config
 
-	// 新 OpenAI OAuth 账号准入（可选）
-	admissionRepo    OpenAIAccountAdmissionRepository
-	admissionRunning atomic.Bool
-
 	cron      *cron.Cron
 	startOnce sync.Once
 	stopOnce  sync.Once
-}
-
-// SetOpenAIAccountAdmissionRepository 注入准入仓储；未注入时不执行准入测试。
-func (s *ScheduledTestRunnerService) SetOpenAIAccountAdmissionRepository(repo OpenAIAccountAdmissionRepository) {
-	if s != nil {
-		s.admissionRepo = repo
-	}
 }
 
 // NewScheduledTestRunnerService creates a new runner.
@@ -68,11 +56,7 @@ func (s *ScheduledTestRunnerService) Start() {
 		}
 
 		c := cron.New(cron.WithParser(scheduledTestCronParser), cron.WithLocation(loc))
-		_, err := c.AddFunc("* * * * *", func() {
-			// 准入测试独立运行，不阻塞普通定时测试。
-			go s.runOpenAIAccountAdmission()
-			s.runScheduled()
-		})
+		_, err := c.AddFunc("* * * * *", func() { s.runScheduled() })
 		if err != nil {
 			logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] not started (invalid schedule): %v", err)
 			return
